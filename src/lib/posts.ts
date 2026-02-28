@@ -23,18 +23,18 @@ export function getAllPosts(): PostMeta[] {
       const { data } = matter(raw);
       return {
         slug: filename.replace(/\.mdx?$/, ""),
-        title: data.title ?? "Untitled",
-        date: data.date ?? "",
+        title:       data.title       ?? "Untitled",
+        date:        data.date        ?? "",
         description: data.description ?? "",
-        tags: data.tags ?? [],
+        tags:        data.tags        ?? [] as string[],
       };
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export function getPostBySlug(slug: string) {
-  const mdxPath = path.join(POSTS_DIR, `${slug}.mdx`);
-  const mdPath  = path.join(POSTS_DIR, `${slug}.md`);
+export function getPostBySlug(slug: string): { frontmatter: PostMeta; content: string } {
+  const mdxPath  = path.join(POSTS_DIR, `${slug}.mdx`);
+  const mdPath   = path.join(POSTS_DIR, `${slug}.md`);
   const filePath = fs.existsSync(mdxPath) ? mdxPath : mdPath;
 
   const raw = fs.readFileSync(filePath, "utf8");
@@ -43,10 +43,10 @@ export function getPostBySlug(slug: string) {
   return {
     frontmatter: {
       slug,
-      title: data.title ?? "Untitled",
-      date: data.date ?? "",
+      title:       data.title       ?? "Untitled",
+      date:        data.date        ?? "",
       description: data.description ?? "",
-      tags: data.tags ?? [],
+      tags:        data.tags        ?? [] as string[],
     },
     content,
   };

@@ -200,7 +200,7 @@ Post-training evaluation uses four **weighted-average** metrics:
 | **Recall** | Of all true X samples, how many did you catch |
 | **F1 Score** | Harmonic mean of precision and recall |
 
-The **confusion matrix** is the most actionable output. Each row is a true class; each column is a predicted class. Perfect classification puts all mass on the diagonal. Off-diagonal cells reveal *which specific class pairs* get confused — pointing directly at where to focus next.
+The confusion matrix is the most useful chart to look at. Each row is what the signal actually was, each column is what the model predicted. If the model is perfect, all the numbers sit along the diagonal. Any number off the diagonal means the model mixed up two classes — and that's exactly where you need to improve.
 
 The batch prediction mode classifies an entire directory, auto-labels using filename prefixes, and generates a confusion matrix on the fly — great for evaluating new test captures without rerunning training.
 
