@@ -1,0 +1,217 @@
+---
+title: "Listening to the Invisible: Classifying Radio Signals with a CNN"
+date: "2025-02-28"
+description: "How I captured raw IQ samples from the RF spectrum, transformed them into spectrograms, and trained a convolutional neural network to distinguish APRS, FSK, SSTV, and noise."
+tags: ["deep-learning", "pytorch", "sdr", "signal-processing", "python"]
+---
+
+## 01 — Motivation
+
+This project started with a bigger ambition — a system that could scan the radio spectrum, recognize signal types, and decode them automatically. That turned out to be more than I could tackle/feasible in one go. So I broke it down and built the part that felt most achievable first: a CNN that classifies signals from their spectrograms. Consider this part one of a series that might or might not continue.
+---
+
+## 02 — Data Capture
+
+Every `.npy` file in the dataset is a snapshot of the real RF spectrum — captured live with a Software Defined Radio (SDR) running at **2.4 MHz sample rate**.
+
+An SDR dongle (RTL-SDR or similar) acts as a wideband radio receiver. Instead of demodulating to audio, it streams raw **IQ samples** — pairs of In-phase (I) and Quadrature (Q) components. Together, these two numbers fully describe an RF signal's amplitude and phase at every moment in time. They're saved directly as NumPy complex float32 arrays.
+
+File naming is the labeling system: files are prefixed by class name (`aprs_001.npy`, `fsk_042.npy`, `sstv_007.npy`, `noise_003.npy`). The training pipeline reads this prefix to assign ground-truth labels automatically.
+
+| Signal | Full Name | Modulation | Use |
+|--------|-----------|-----------|-----|
+| **APRS** | Automatic Packet Reporting System | AFSK 1200 baud | Ham radio GPS tracking, telemetry, messaging |
+| **FSK** | Frequency-Shift Keying | Binary / M-ary FSK | Pagers, teletype, IoT sensors, data links |
+| **NOISE** | Thermal / atmospheric noise | — | Null class; no signal present |
+| **SSTV** | Slow-Scan Television | FM sub-carrier | Transmitting still images over voice radio |
+
+**Key capture parameters:**
+
+- **Sample rate:** 2.4 MHz
+- **Format:** `.npy` (complex float32 IQ arrays)
+- **Classes:** 4
+- **Train/test split:** 80/20 per class
+
+---
+
+## 03 — Signal Processing: IQ → 128×128 Spectrogram
+
+Raw IQ data is not what you hand a CNN. The key step is converting it into a **spectrogram** — a 2D time-frequency representation where the network can literally *see* the shape of the signal (cnn hehe).
+
+### Step 1 — Short-Time Fourier Transform (STFT)
+
+SciPy's `signal.spectrogram` with a **512-sample Hann window** and **256-sample overlap** (50%). At 2.4 MHz this gives roughly 4.7 kHz per frequency bin. The Hann window suppresses spectral leakage from the sharp edges of each segment.
+
+### Step 2 — Convert to dB Scale
+
+Power spectral density is converted to decibels:
+
+```
+10 × log10(Sxx + 1e-10)
+```
+
+The tiny epsilon prevents `log(0)` on silent bins. This logarithmic compression makes weak and strong signals visually comparable  , which makes the CNN's job much easier.
+
+### Step 3 — Frequency Mask (±500 kHz)
+
+Only the central ±500 kHz band is retained. This crops out the DC spike artefact that RTL-SDR dongles produce at the center frequency, and focuses the spectrogram on the useful region.
+
+### Step 4 — Min-Max Normalisation → [0, 1]
+
+Each spectrogram is independently scaled to [0, 1]. This ensures the network sees consistent input magnitudes regardless of how strong or weak the captured signal was , absolute signal level is not a useful feature for modulation classification.
+
+### Step 5 — Bilinear Resize to 128×128
+
+SciPy's `zoom` with `order=1` (bilinear interpolation) resizes every spectrogram to a fixed 128×128 grid. Small enough to train fast, large enough to preserve structural detail.
+
+```python
+def iq_to_spectrogram(iq_samples, nperseg=512, noverlap=256):
+    f, t, Sxx = signal.spectrogram(
+        iq_samples, fs=SAMPLE_RATE,   # 2.4 MHz
+        nperseg=nperseg, noverlap=noverlap, window='hann'
+    )
+    Sxx_db    = 10 * np.log10(Sxx + 1e-10)    # power → dB
+    freq_mask = np.abs(f) < 500e3             # ±500 kHz band
+    Sxx_plot  = Sxx_db[freq_mask, :]
+    Sxx_plot  = (Sxx_plot - Sxx_plot.min()) / (Sxx_plot.ptp() + 1e-10)
+    zoom_f    = (SPEC_SIZE / Sxx_plot.shape[0], SPEC_SIZE / Sxx_plot.shape[1])
+    return zoom(Sxx_plot, zoom_f, order=1).astype(np.float32), f, t
+```
+
+---
+
+## 04 — Model Architecture: SpectrogramCNN
+
+The architecture follows a classic **encode → classify** pattern: a stack of convolutional blocks extracts hierarchical visual features, then a small fully-connected head maps those features to class probabilities.
+
+```
+Input          Conv Block 1      Conv Block 2       Conv Block 3     Adaptive Pool    FC Head       Output
+1×128×128  →  32 filters 3×3  → 64 filters 3×3  → 128 filters 3×3 → 128×4×4      → 2048→256→4 → 4 logits
+               MaxPool→64×64    MaxPool→32×32      MaxPool→16×16
+                                Dropout2d 0.25                        (2048 features)  Dropout 0.5
+```
+
+### Why Three Conv Blocks?
+
+Each block learns features at a different level of abstraction:
+
+- **Block 1** — Low-level: edges, sharp frequency transitions, carrier boundaries
+- **Block 2** — Mid-level: the "ladder rungs" of FSK tones, smooth SSTV colour bursts
+- **Block 3** — Global: overall bandwidth footprint, temporal envelope of the whole signal
+
+Each block halves spatial resolution via MaxPool, so by the time we reach the adaptive pool we're working with a compact 16×16 map that still carries rich semantic content.
+
+### Adaptive Average Pooling
+
+`AdaptiveAvgPool2d((4, 4))` forces the output to always be 4×4, regardless of input size. This means the classifier's input is always `128 × 4 × 4 = 2048` — so you could feed the network spectrograms of different sizes without touching the architecture. It also averages away spatial position, giving mild translation invariance for free.
+
+### Two Kinds of Dropout
+
+- **`Dropout2d(0.25)`** after Block 2: randomly zeros entire feature maps. Stronger regularization than neuron-level dropout — forces the network not to rely on any single channel.
+- **`Dropout(0.5)`** in the FC head: classic 50% neuron dropout, the workhorse of deep network regularization.
+Dropout is basically a way to stop your network from cheating.
+```python
+class SpectrogramCNN(nn.Module):
+    def __init__(self, num_classes=4):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1,   32,  kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(32,  64,  kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Dropout2d(0.25),
+            nn.Conv2d(64,  128, kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+        )
+        self.pool       = nn.AdaptiveAvgPool2d((4, 4))
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(128 * 4 * 4, 256), nn.ReLU(), nn.Dropout(0.5),
+            nn.Linear(256, num_classes),
+        )
+
+    def forward(self, x):
+        return self.classifier(self.pool(self.features(x)))
+```
+
+---
+
+## 05 — Training
+
+- **Optimizer:** Adam, lr=0.001
+- **Loss:** CrossEntropyLoss
+- **Epochs:** Up to 50, with patience-10 early stopping
+- **Batch size:** 16
+
+### Best-Checkpoint Strategy
+
+Every time test loss hits a new minimum, weights are saved to disk. After training ends, *those* weights are loaded for evaluation , not the final epoch's weights. You're benchmarking the best-generalizing checkpoint, which may be several epochs before training stopped.
+
+
+```python
+# Early stopping loop (simplified)
+for epoch in range(NUM_EPOCHS):
+    # ... train ...
+    if test_loss < best_test_loss:
+        best_test_loss = test_loss
+        patience_counter = 0
+        torch.save(model.state_dict(), MODEL_PATH)  # save best
+    else:
+        patience_counter += 1
+        if patience_counter >= patience:
+            break  # early stop
+```
+
+---
+
+## 06 — Inference
+
+At inference time the pipeline is lean:
+
+1. Load `.npy` file
+2. Run `iq_to_spectrogram()`
+3. Unsqueeze to add batch + channel dims → `(1, 1, 128, 128)`
+4. Push through frozen network
+5. Softmax → argmax
+
+```python
+def classify_signal(model, iq_samples):
+    spec, _, _ = iq_to_spectrogram(iq_samples)
+    tensor = torch.from_numpy(spec).unsqueeze(0).unsqueeze(0).to(DEVICE)
+
+    with torch.no_grad():
+        probs     = torch.softmax(model(tensor), dim=1)[0]
+        conf, idx = torch.max(probs, dim=0)
+
+    return CLASS_NAMES[idx.item()], conf.item(), {
+        CLASS_NAMES[i]: probs[i].item() for i in range(len(CLASS_NAMES))
+    }, spec
+```
+
+The softmax output gives you a **confidence score** alongside the prediction. The visualization renders four panels: raw I/Q time series, the spectrogram, a probability bar chart, and a verdict — CONFIDENT (>0.8), MODERATE (0.6–0.8), or LOW CONFIDENCE (<0.6).
+
+---
+
+## 07 — Evaluation
+
+Post-training evaluation uses four **weighted-average** metrics:
+
+| Metric | What it measures |
+|--------|-----------------|
+| **Accuracy** | Overall fraction of correct predictions |
+| **Precision** | Of all predictions of class X, how many were actually X |
+| **Recall** | Of all true X samples, how many did you catch |
+| **F1 Score** | Harmonic mean of precision and recall |
+
+The **confusion matrix** is the most actionable output. Each row is a true class; each column is a predicted class. Perfect classification puts all mass on the diagonal. Off-diagonal cells reveal *which specific class pairs* get confused — pointing directly at where to focus next.
+
+The batch prediction mode classifies an entire directory, auto-labels using filename prefixes, and generates a confusion matrix on the fly — great for evaluating new test captures without rerunning training.
+
+---
+
+## 08 — What's Next
+
+**More signal classes** — ADS-B, WSPR, DMR, P25, FT8. The SDR pipeline makes adding new classes straightforward once you can tune to the right frequency.
+
+**Real-time classification** — Feed live IQ streams into a sliding-window → spectrogram → classify loop. With a modest GPU this can run well under 100ms latency, enabling live RF monitoring.
+
+**Decode** - This was my main goal , load the samples into the respective decoding software and decode them.
+
+
