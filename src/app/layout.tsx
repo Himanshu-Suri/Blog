@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 export const metadata: Metadata = {
   title: { default: "Himanshu's blog", template: "%s | Signal Blog" },
   description: "Deep learning, SDR, and signal processing.",
@@ -10,7 +11,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-bg text-[#b8cfd8] font-sans min-h-screen flex flex-col">
+        <Navbar/>
         <main className="flex-1">{children}</main>
+        <Footer/>
       </body>
     </html>
   );
