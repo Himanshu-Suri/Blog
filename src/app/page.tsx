@@ -6,7 +6,7 @@ export default function HomePage() {
 
   return (
     <main className="max-w-4xl mx-auto px-6 py-20">
-      {/* Hero */}
+    
       <div className="mb-20 border-b border-[rgba(0,229,255,0.1)] pb-16">
         <span className="font-mono text-xs tracking-[0.3em] uppercase text-accent2 block mb-4">
           // Himanshu Suri 
@@ -20,7 +20,6 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Posts */}
       <div className="mb-6">
         <span className="font-mono text-xs tracking-[0.3em] uppercase text-dim">
           // posts
