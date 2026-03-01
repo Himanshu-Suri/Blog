@@ -9,7 +9,7 @@ export default function HomePage() {
       {/* Hero */}
       <div className="mb-20 border-b border-[rgba(0,229,255,0.1)] pb-16">
         <span className="font-mono text-xs tracking-[0.3em] uppercase text-accent2 block mb-4">
-          // signal.blog
+          // Himanshu Suri 
         </span>
         <h1 className="font-display font-extrabold text-bright text-5xl tracking-tight mb-4">
           Writing about the<br />
