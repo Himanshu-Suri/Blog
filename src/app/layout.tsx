@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "My random blog", template: "%s | Signal Blog" },
+  title: { default: "Himanshu's blog", template: "%s | Signal Blog" },
   description: "Deep learning, SDR, and signal processing.",
 };
 
