@@ -1,7 +1,7 @@
 ---
 title: "Capturing RF Signals with RTL-SDR and Python"
-description: "Complete guide to capturing real-world RF signals from CubeSatSim using Python and RTL-SDR dongle"
-date: "2024-12-22"
+description: "A guide to capturing real-world RF signals from CubeSatSim using Python and RTL-SDR dongle"
+date: "2026-12-22"
 tags: ["SDR", "Python", "RF", "Signal Processing", "CubeSat"]
 ---
 
@@ -77,9 +77,9 @@ A practical guide to capturing real RF signals from CubeSatSim for machine learn
          ↓
 ┌─────────────────────────────────┐
 │  Saved Dataset                  │
-│  └── aprs_2024-12-22.npy       │
-│  └── fsk_2024-12-22.npy        │
-│  └── sstv_2024-12-22.npy       │
+│  └── aprs_2026-02-22.npy       │
+│  └── fsk_2026-02-22.npy        │
+│  └── sstv_2026-02-22.npy       │
 └─────────────────────────────────┘
 ```
 
@@ -159,7 +159,7 @@ np.save(filename, iq_samples)
 - `.npy` = NumPy binary format
 - Contains complex numbers (I + jQ)
 - Efficient storage and fast loading
-- Example: `aprs_2024-12-22_14-30-45.npy`
+- Example: `aprs_2026-02-22_14-30-45.npy`
 
 ### Step 4: Interactive Capture Loop
 ```python
@@ -460,7 +460,7 @@ with open("data/metadata.txt", "a") as f:
 ### 1. Label Data Clearly
 ```python
 # Good naming:
-"aprs_2024-12-22_14-30-00.npy"  ✓
+"aprs_2026-02-22_14-30-00.npy"  ✓
 
 # Bad naming:
 "signal1.npy"  ✗
