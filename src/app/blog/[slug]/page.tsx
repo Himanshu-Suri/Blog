@@ -21,7 +21,7 @@ export default async function PostPage({ params }: Props) {
         href="/"
         className="font-mono text-xs tracking-[0.2em] uppercase text-dim hover:text-accent transition-colors duration-200 mb-12 block"
       >
-        ← back
+        back
       </Link>
 
       <header className="mb-12 pb-10" style={{ borderBottom: '1px solid rgba(240,168,50,0.1)' }}>
