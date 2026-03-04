@@ -7,7 +7,7 @@ tags: ["deep-learning", "pytorch", "sdr", "signal-processing", "python"]
 
 ## 01 — Motivation
 
-This project started with a bigger ambition — a system that could scan the radio spectrum, recognize signal types, and decode them automatically. That turned out to be more than I could tackle/feasible in one go. So I broke it down and built the part that felt most achievable first: a CNN that classifies signals from their spectrograms. Consider this part one of a series that might or might not continue.
+This project started with a bigger goal , a system that could scan the radio spectrum, recognize signal types, and decode them automatically. That turned out to be more than I could tackle/feasible in one go. So I broke it down and built the part that felt most achievable first: a CNN that classifies signals from their spectrograms. Consider this part one of a series that might or might not continue.
 ---
 
 ## 02 — Data Capture
@@ -96,7 +96,7 @@ Input          Conv Block 1      Conv Block 2       Conv Block 3     Adaptive Po
 Each block learns features at a different level of abstraction:
 
 - **Block 1** — Low-level: edges, sharp frequency transitions, carrier boundaries
-- **Block 2** — Mid-level: the "ladder rungs" of FSK tones, smooth SSTV colour bursts
+- **Block 2** — Mid-level: Captures the texture's pattern's of FSK tones, smooth SSTV colour bursts etc
 - **Block 3** — Global: overall bandwidth footprint, temporal envelope of the whole signal
 
 Each block halves spatial resolution via MaxPool, so by the time we reach the adaptive pool we're working with a compact 16×16 map that still carries rich semantic content.
