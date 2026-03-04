@@ -1,26 +1,87 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,700;0,800;1,400&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-sans: 'JetBrains Mono', monospace;
+  --font-mono:    'JetBrains Mono', monospace;
+  --font-sans:    'JetBrains Mono', monospace;
   --font-display: 'JetBrains Mono', monospace;
 
-  --color-bg:       #030a0f;
-  --color-surface:  #0b1820;
-  --color-surface2: #0f2232;
-  --color-accent:   #00e5ff;
-  --color-accent2:  #ff6b35;
-  --color-accent3:  #39ff14;
-  --color-dim:      #4a6a7a;
-  --color-bright:   #eaf6ff;
+  --color-bg:       #0f0608;
+  --color-surface:  #1a0b0e;
+  --color-surface2: #261118;
+
+  --color-accent:   #c49a6c;
+  --color-accent2:  #a0693a;
+  --color-accent3:  #c45a3a;
+
+  --color-bright:   #f0e6d0;
+  --color-dim:      #7a5560;
+
+  --color-border:   rgba(196, 154, 108, 0.10);
+  --color-border2:  rgba(122,  85,  96, 0.35);
 }
 
 @layer base {
   body {
     background-color: var(--color-bg);
-    color: #b8cfd8;
+    color: #c4a882;
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.06) 2px,
+      rgba(0, 0, 0, 0.06) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  ::selection {
+    background: rgba(196, 154, 108, 0.25);
+    color: var(--color-bright);
+  }
+
+  ::-webkit-scrollbar       { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--color-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--color-border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-dim); }
+
+  .prose :not(pre) > code {
+    background: rgba(196, 154, 108, 0.08);
+    color: var(--color-accent);
+    border: 1px solid rgba(196, 154, 108, 0.15);
+  }
+
+  .prose pre {
+    background: var(--color-surface) !important;
+    border: 1px solid rgba(196, 154, 108, 0.12);
+    border-left: 3px solid var(--color-accent);
+  }
+
+  .prose blockquote {
+    border-left-color: var(--color-accent);
+    color: #c4a882;
+    font-style: normal;
+  }
+
+  .prose hr {
+    border-color: rgba(196, 154, 108, 0.12);
+  }
+
+  .prose thead th {
+    color: var(--color-dim);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
   }
 }
